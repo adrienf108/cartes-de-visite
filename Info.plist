@@ -1,0 +1,14 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+	<key>CFBundleIdentifier</key>
+	<string>io.github.adrienf108.cartes-de-visite</string>
+	<key>CFBundleName</key>
+	<string>Cartes de visite</string>
+	<key>NSCameraUsageDescription</key>
+	<string>Lire les cartes de visite présentées devant la caméra.</string>
+	<key>NSContactsUsageDescription</key>
+	<string>Ajouter les cartes de visite lues à tes contacts.</string>
+</dict>
+</plist>

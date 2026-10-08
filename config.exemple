@@ -1,0 +1,10 @@
+# Copiez ce fichier dans ~/.config/cartes-de-visite/config et adaptez-le.
+
+# Dossier des données : photos, fiches, liste d'appels. Un dossier iCloud Drive la rend lisible sur l'iPhone.
+CARTES_DOSSIER="$HOME/Documents/Cartes de visite"
+
+# Groupe Contacts où ranger les nouvelles fiches.
+CARTES_GROUPE="Cartes de visite"
+
+# Vos propres cartes, à ne pas importer (noms ou sociétés, séparés par des virgules).
+CARTES_IGNORER="Ma Société, Prénom Nom"

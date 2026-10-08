@@ -1,0 +1,10 @@
+build/
+*.tmp
+.DS_Store
+__pycache__/
+# Données et réglages personnels : jamais dans le dépôt
+config
+scans/
+personnes.json
+traitees.json
+*.xlsx

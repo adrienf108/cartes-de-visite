@@ -1,0 +1,45 @@
+#!/bin/zsh
+# cartes — scanne des cartes de visite à la caméra, puis remplit Contacts et la liste d'appels.
+#
+#   cartes [--camera NOM] [--source "Salon X"]   scanner, puis traiter
+#   cartes photos [--source "Salon X"] PHOTO...  partir de photos déjà prises
+#   cartes traiter [--changer-de-mac]            relancer le traitement seul
+#   cartes cameras                               lister les caméras
+#
+# Réglages dans ~/.config/cartes-de-visite/config (voir config.exemple).
+set -euo pipefail
+
+ICI=${0:A:h}
+OUTIL="$ICI/build/cartes-outil"
+CONFIG=${CARTES_CONFIG:-${XDG_CONFIG_HOME:-$HOME/.config}/cartes-de-visite/config}
+[[ -f $CONFIG ]] && source "$CONFIG"
+DOSSIER=${CARTES_DOSSIER:-"$HOME/Documents/Cartes de visite"}
+GROUPE=${CARTES_GROUPE:-"Cartes de visite"}
+IGNORER=${CARTES_IGNORER:-""}
+
+compiler() {
+  if [[ ! -x $OUTIL || $ICI/cartes.swift -nt $OUTIL || $ICI/Info.plist -nt $OUTIL ]]; then
+    echo "Compilation de cartes-outil…"
+    mkdir -p "$ICI/build"
+    swiftc -O -swift-version 5 "$ICI/cartes.swift" -o "$OUTIL.new" \
+      -Xlinker -sectcreate -Xlinker __TEXT -Xlinker __info_plist -Xlinker "$ICI/Info.plist"
+    mv "$OUTIL.new" "$OUTIL"
+  fi
+}
+
+traiter() {
+  uv run --quiet --script "$ICI/traiter.py" "$DOSSIER" --outil "$OUTIL" --groupe "$GROUPE" --ignorer "$IGNORER" "$@"
+}
+
+mkdir -p "$DOSSIER/scans"
+case "${1:-}" in
+  cameras) compiler; "$OUTIL" cameras ;;
+  traiter) shift; compiler; traiter "$@" ;;
+  photos)  shift; compiler; "$OUTIL" images --out "$DOSSIER/scans" "$@"; traiter ;;
+  -h|--help|aide) sed -n '2,9p' "$0" | sed 's/^# \{0,1\}//' ;;
+  *)
+    compiler
+    "$OUTIL" scan --out "$DOSSIER/scans" "$@"
+    traiter
+    ;;
+esac
