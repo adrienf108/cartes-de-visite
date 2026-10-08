@@ -16,6 +16,7 @@ CONFIG=${CARTES_CONFIG:-${XDG_CONFIG_HOME:-$HOME/.config}/cartes-de-visite/confi
 DOSSIER=${CARTES_DOSSIER:-"$HOME/Documents/Cartes de visite"}
 GROUPE=${CARTES_GROUPE:-"Cartes de visite"}
 IGNORER=${CARTES_IGNORER:-""}
+MODELE=${CARTES_MODELE:-sonnet}
 
 compiler() {
   if [[ ! -x $OUTIL || $ICI/cartes.swift -nt $OUTIL || $ICI/Info.plist -nt $OUTIL ]]; then
@@ -28,7 +29,7 @@ compiler() {
 }
 
 traiter() {
-  uv run --quiet --script "$ICI/traiter.py" "$DOSSIER" --outil "$OUTIL" --groupe "$GROUPE" --ignorer "$IGNORER" "$@"
+  uv run --quiet --script "$ICI/traiter.py" "$DOSSIER" --outil "$OUTIL" --groupe "$GROUPE" --ignorer "$IGNORER" --modele "$MODELE" "$@"
 }
 
 mkdir -p "$DOSSIER/scans"

@@ -8,3 +8,6 @@ CARTES_GROUPE="Cartes de visite"
 
 # Vos propres cartes, à ne pas importer (noms ou sociétés, séparés par des virgules).
 CARTES_IGNORER="Ma Société, Prénom Nom"
+
+# Modèle Claude qui lit les cartes : sonnet (par défaut), haiku (consomme moins), opus.
+CARTES_MODELE="sonnet"

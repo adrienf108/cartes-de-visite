@@ -17,7 +17,41 @@ Un tas de cartes de visite, une webcam, et c'est tout. Faites défiler les carte
 - Un Mac sous macOS 14 ou plus récent, avec une webcam ou un iPhone en caméra de continuité.
 - Les outils en ligne de commande de Xcode, pour `swiftc` : `xcode-select --install`.
 - [uv](https://docs.astral.sh/uv/), pour lancer le script Python et ses dépendances.
-- [Claude Code](https://claude.com/claude-code), installé et connecté. La lecture passe par votre abonnement Claude, ou par une clé d'API si Claude Code en utilise une. Comptez moins d'un centime par carte avec Sonnet.
+- [Claude Code](https://claude.com/claude-code), connecté à votre abonnement Claude (voir ci-dessous).
+
+## Utiliser son abonnement Claude
+
+L'outil n'a pas de clé d'API à configurer. Il appelle `claude -p` (Claude Code en mode non interactif), qui utilise le compte avec lequel Claude Code est connecté. Avec un abonnement Claude Pro ou Max (ou une place Team ou Enterprise qui inclut Claude Code), la lecture des cartes passe donc par cet abonnement.
+
+1. **Installer Claude Code** :
+
+   ```bash
+   curl -fsSL https://claude.ai/install.sh | bash
+   ```
+
+   Autres méthodes (Homebrew, npm) : voir la [documentation de Claude Code](https://claude.com/claude-code).
+
+2. **Se connecter avec son abonnement** :
+
+   ```bash
+   claude auth login
+   ```
+
+   Le navigateur s'ouvre sur claude.ai. Connectez-vous avec le compte qui porte l'abonnement. L'option `--claudeai` (abonnement) est celle par défaut ; `--console` facturerait à l'usage via la console Anthropic.
+
+3. **Vérifier** :
+
+   ```bash
+   claude auth status --text
+   ```
+
+   Le statut doit indiquer une connexion par claude.ai et le type d'abonnement (pro, max…). Ensuite, `claude -p "Bonjour"` doit répondre.
+
+**Bon à savoir**
+
+- **Variable `ANTHROPIC_API_KEY`** : si elle est définie dans votre terminal, Claude Code peut s'en servir à la place de l'abonnement, et l'usage est alors facturé sur la clé. Pour rester sur l'abonnement, retirez-la : `unset ANTHROPIC_API_KEY`.
+- **Limites d'usage** : chaque lot de cartes compte dans les limites de votre abonnement, comme un message. Les lots sont petits : environ 12 cartes, avec la photo recadrée et le texte de chacune. Si une limite est atteinte, le lot échoue proprement ; relancez `./cartes traiter` plus tard pour le reprendre.
+- **Modèle** : Sonnet par défaut. `CARTES_MODELE="haiku"` dans le fichier de réglages consomme moins, mais lit un peu moins bien les cartes difficiles.
 
 ## Installation
 
@@ -58,6 +92,7 @@ Copiez `config.exemple` dans `~/.config/cartes-de-visite/config` :
 | `CARTES_DOSSIER` | Dossier des données (photos, fiches, liste) | `~/Documents/Cartes de visite` |
 | `CARTES_GROUPE` | Groupe Contacts des nouvelles fiches | `Cartes de visite` |
 | `CARTES_IGNORER` | Vos propres cartes, à ne pas importer | (vide) |
+| `CARTES_MODELE` | Modèle Claude qui lit les cartes | `sonnet` |
 
 Pour retrouver la liste sur l'iPhone, choisissez un dossier dans iCloud Drive. Un seul Mac traite un dossier donné (fichier `.mac-de-traitement`), parce qu'iCloud ne coordonne pas deux Mac qui écrivent en même temps. Pour changer de Mac, attendez la fin de la synchronisation, puis lancez `./cartes traiter --changer-de-mac`.
 
