@@ -246,7 +246,7 @@ def verifier(fiche: dict, cartes: list[dict]) -> dict:
         tels.append({"numero": phonenumbers.format_number(n, phonenumbers.PhoneNumberFormat.E164),
                      "affichage": phonenumbers.format_number(n, format_), "type": type_})
 
-    emails, corrections = [], []
+    emails = []
     lus = [m.lower() for l in lignes for m in re.findall(r"[^\s@:;,]+@[^\s@:;,]+", l)]  # e-mails lus par l'OCR
     for e in fiche["emails"]:
         e = re.sub(r"\s", "", e).lower().removeprefix("mailto:")
@@ -257,12 +257,12 @@ def verifier(fiche: dict, cartes: list[dict]) -> dict:
             # Claude lit la photo et corrige l'OCR (« forent » → « florent ») : quelques lettres d'écart.
             proche = min(lus, key=lambda x: distance(x, e), default=None)
             if proche is not None and distance(proche, e) <= 3:
-                corrections.append(f"e-mail lu « {proche} » par l'OCR, corrigé d'après la photo")
+                problemes.append(f"e-mail lu « {proche} » par l'OCR, corrigé en « {e} » d'après la photo : à confirmer")
             else:
                 problemes.append(f"e-mail {e} absent du texte lu")
         emails.append(e)
 
-    remarque = "; ".join(r for r in [fiche["remarque"], *corrections, *problemes] if r)
+    remarque = "; ".join(r for r in [fiche["remarque"], *problemes] if r)
     return dict(fiche, telephones=tels, emails=emails, remarque=remarque,
                 a_verifier=bool(fiche["a_verifier"] or problemes))
 
@@ -302,6 +302,12 @@ def meme_personne(a: dict, b: dict) -> bool:
     if ident(a) or ident(b):
         return False
     return meme_societe  # deux cartes de société sans nom de personne
+
+
+def identites_compatibles(a: dict, b: dict) -> bool:
+    """Faux si les deux fiches nomment deux personnes différentes."""
+    na, nb = sans_accents(f"{a['prenom']} {a['nom']}").strip(), sans_accents(f"{b['prenom']} {b['nom']}").strip()
+    return not (na and nb and na != nb)
 
 
 def fusionner(existante: dict, nouvelle: dict) -> list[str]:
@@ -348,9 +354,14 @@ def extraire(dossier: Path, modele: str, ignorer: str = "") -> int:
         print(f"{len(absentes)} carte(s) encore dans iCloud : téléchargement lancé, lues au prochain lancement.")
     ordre = {c: i for i, c in enumerate(sorted(p.stem for p in scans.glob("*.json")))}
     a_faire = sorted(c for c in ordre if c not in traitees)
+    # Une photo déchargée par iCloud : on la télécharge et la carte attend le prochain lancement.
+    photos_absentes = [c for c in a_faire if dans_icloud(scans / f"{c}.jpg")]
+    if photos_absentes:
+        print(f"{len(photos_absentes)} photo(s) encore dans iCloud : téléchargement lancé, cartes lues au prochain lancement.")
+        a_faire = [c for c in a_faire if c not in photos_absentes]
     if not a_faire:
         print("Aucune nouvelle carte à lire.")
-        return 0
+        return len(photos_absentes)
     cartes = {i: json.loads((scans / f"{i}.json").read_text()) for i in a_faire}
     lots = decouper_en_lots(a_faire, cartes)
     print(f"Lecture de {len(a_faire)} carte(s) par Claude ({modele}), {len(lots)} lot(s)…")
@@ -374,9 +385,16 @@ def extraire(dossier: Path, modele: str, ignorer: str = "") -> int:
             f.update(cle=ids_fiche[0], cartes=ids_fiche, source=premiere.get("source", ""),
                      scannee_le=premiere.get("scanneeLe", "")[:10], contact=None)
             if contexte in ids_fiche:
-                # Autre face de la dernière carte du lot précédent : on complète sa fiche.
+                # Autre face de la dernière carte du lot précédent : on complète sa fiche,
+                # sauf si les deux fiches portent des noms différents (un collègue, pas un verso).
                 face = next((p for p in personnes if contexte in p["cartes"]), None)
-                if face:
+                if face and not identites_compatibles(face, f):
+                    f["cartes"] = [c for c in ids_fiche if c != contexte]
+                    f["cle"] = f["cartes"][0]
+                    f["a_verifier"] = True
+                    f["remarque"] = "; ".join(r for r in [f["remarque"], "rapprochée par Claude d'une autre carte "
+                                                          "au nom différent : gardée à part"] if r)
+                elif face:
                     f["cartes"] = [c for c in ids_fiche if c != contexte]
                     fusionner(face, f)
                     for c in f["cartes"]:
@@ -437,7 +455,7 @@ def extraire(dossier: Path, modele: str, ignorer: str = "") -> int:
             else:
                 print(enregistrer_lot(lots[k], res, contextes[k]))
     enregistrees = lire_json(dossier / "traitees.json", {})
-    return sum(1 for i in a_faire if i not in enregistrees)
+    return len(photos_absentes) + sum(1 for i in a_faire if i not in enregistrees)
 
 
 def ajouter_contacts(dossier: Path, outil: str, groupe: str) -> None:
