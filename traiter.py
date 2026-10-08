@@ -304,10 +304,12 @@ def meme_personne(a: dict, b: dict) -> bool:
     return meme_societe  # deux cartes de société sans nom de personne
 
 
-def identites_compatibles(a: dict, b: dict) -> bool:
-    """Faux si les deux fiches nomment deux personnes différentes."""
+def meme_identite(a: dict, b: dict) -> bool:
+    """Preuve positive qu'il s'agit de la même carte : même nom, ou, si l'une n'a pas de nom, même société."""
     na, nb = sans_accents(f"{a['prenom']} {a['nom']}").strip(), sans_accents(f"{b['prenom']} {b['nom']}").strip()
-    return not (na and nb and na != nb)
+    if na and nb:
+        return na == nb
+    return sans_accents(a["societe"]) == sans_accents(b["societe"]) != ""
 
 
 def fusionner(existante: dict, nouvelle: dict) -> list[str]:
@@ -384,16 +386,21 @@ def extraire(dossier: Path, modele: str, ignorer: str = "") -> int:
             premiere = cartes[ids_fiche[0]]
             f.update(cle=ids_fiche[0], cartes=ids_fiche, source=premiere.get("source", ""),
                      scannee_le=premiere.get("scanneeLe", "")[:10], contact=None)
+            if any(not (scans / f"{c}.jpg").exists() for c in ids_fiche):
+                f["a_verifier"] = True
+                f["remarque"] = "; ".join(r for r in [f["remarque"], "photo absente : lue sur le seul texte OCR"] if r)
             if contexte in ids_fiche:
-                # Autre face de la dernière carte du lot précédent : on complète sa fiche,
-                # sauf si les deux fiches portent des noms différents (un collègue, pas un verso).
+                # Autre face de la dernière carte du lot précédent : on complète sa fiche, mais seulement
+                # avec une preuve (même nom, ou même société pour un verso sans nom).
                 face = next((p for p in personnes if contexte in p["cartes"]), None)
-                if face and not identites_compatibles(face, f):
-                    f["cartes"] = [c for c in ids_fiche if c != contexte]
-                    f["cle"] = f["cartes"][0]
-                    f["a_verifier"] = True
-                    f["remarque"] = "; ".join(r for r in [f["remarque"], "rapprochée par Claude d'une autre carte "
-                                                          "au nom différent : gardée à part"] if r)
+                if face and not meme_identite(face, f):
+                    # Gardée à part, et revérifiée sur ses seules cartes : rien ne vient du contexte sans contrôle.
+                    seules = [c for c in ids_fiche if c != contexte]
+                    f = verifier(fiche, [cartes[c] for c in seules])
+                    f.update(cle=seules[0], cartes=seules, source=cartes[seules[0]].get("source", ""),
+                             scannee_le=cartes[seules[0]].get("scanneeLe", "")[:10], contact=None, a_verifier=True,
+                             remarque="; ".join(r for r in [f["remarque"], "rapprochée par Claude d'une autre carte "
+                                                            "sans preuve d'identité : gardée à part"] if r))
                 elif face:
                     f["cartes"] = [c for c in ids_fiche if c != contexte]
                     fusionner(face, f)
